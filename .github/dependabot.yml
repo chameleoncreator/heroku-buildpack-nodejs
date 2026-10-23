@@ -4,6 +4,9 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    allow:
+      # Update transitive dependencies too.
+      - dependency-type: "all"
     labels:
       - "dependencies"
       - "ruby"
@@ -23,6 +26,40 @@ updates:
       - "skip changelog"
     groups:
       github-actions:
+        update-types:
+          - "minor"
+          - "patch"
+  - package-ecosystem: "cargo"
+    directory: "/resolve-version"
+    schedule:
+      interval: "monthly"
+    allow:
+      # Update transitive dependencies too.
+      - dependency-type: "all"
+    labels:
+      - "dependencies"
+      - "rust"
+      - "skip changelog"
+    groups:
+      libcnb:
+        patterns:
+          - "libcnb*"
+          - "libherokubuildpack"
+          - "sha2"
+      rust-dependencies:
+        update-types:
+          - "minor"
+          - "patch"
+  - package-ecosystem: "npm"
+    directory: "/yarn2-plugins/prune-dev-dependencies"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "javascript"
+      - "skip changelog"
+    groups:
+      javascript-dependencies:
         update-types:
           - "minor"
           - "patch"

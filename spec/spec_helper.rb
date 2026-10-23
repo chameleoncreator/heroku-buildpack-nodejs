@@ -7,7 +7,6 @@ require 'hatchet'
 require 'rspec/retry'
 require 'date'
 require 'json'
-require 'sem_version'
 
 ENV['RACK_ENV'] = 'test'
 
@@ -43,52 +42,23 @@ def successful_json_body(app, options = {})
   JSON.parse(body)
 end
 
-def set_node_version(version)
-  package_json = File.read('package.json')
-  package = JSON.parse(package_json)
-  package["engines"]["node"] = version
-  File.open('package.json', 'w') do |f|
-    f.puts JSON.dump(package)
-  end
-end
-
 def run!(cmd)
   out = `#{cmd}`
   raise "Error running command #{cmd.inspect}: #{out}" unless $?.success?
   out
 end
 
-def resolve_binary_path
-  RUBY_PLATFORM.match(/darwin/) ? './lib/vendor/resolve-version-darwin' : './lib/vendor/resolve-version-linux'
-end
-
-def resolve_node_version(requirements, options = {})
-  requirements.map do |requirement|
-    result = run!("#{resolve_binary_path} node #{requirement}")
-    result.split(' ').first
-  end
-end
-
-def resolve_all_supported_node_versions(options = {})
-  result = run!("#{resolve_binary_path} list node")
-  list = result.lines().map { |line| line.split(' ').first }
-  list.select do |n|
-    SemVersion.new(n).satisfies?('>= 10.0.0')
-  end
-end
-
-def version_supports_metrics(version)
-  SemVersion.new(version).satisfies?('>= 10.0.0') && SemVersion.new(version).satisfies?('< 25.0.0')
-end
-
-def get_test_versions
-  if ENV['TEST_NODE_VERSION']
-    versions = [ENV['TEST_NODE_VERSION']]
-  elsif ENV['TEST_ALL_NODE_VERSIONS'] == 'true'
-    versions = resolve_all_supported_node_versions()
-  else
-    versions = resolve_node_version(['20.x', '22.x', '23.x', '24.x'])
-  end
-  puts("Running tests for Node versions: #{versions.join(', ')}")
-  versions
+def clean_output(output)
+  output
+    # Remove trailing whitespace characters added by Git:
+    # https://github.com/heroku/hatchet/issues/162
+    .gsub(/ {8}(?=\R)/, '')
+    # Remove ANSI colour codes used in buildpack output (e.g. error messages).
+    # Heroku's build-output transport intermittently renders the trailing ESC
+    # reset as the literal caret notation "^[[0m" instead of a raw ESC byte, so
+    # strip both the real escape sequence and its caret-notation form.
+    .gsub(/(?:\e|\^\[)\[[0-9;]+m/, '')
+    # Strip trailing whitespace from lines that are just remote prefixes
+    # (e.g. "remote:       \n", "remote:  !     \n").
+    .gsub(/^(remote:(?:  !)?)[ \t]+$/, '\1')
 end
